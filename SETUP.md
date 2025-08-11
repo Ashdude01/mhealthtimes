@@ -32,11 +32,13 @@
    # Stripe Configuration
    STRIPE_SECRET_KEY=your_stripe_secret_key_here
    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key_here
+   STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret_here
 
    # Cloudinary Configuration
    CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name_here
    CLOUDINARY_API_KEY=your_cloudinary_api_key_here
    CLOUDINARY_API_SECRET=your_cloudinary_api_secret_here
+   CLOUDINARY_NOTIFICATION_URL=your_webhook_url_here
 
    # SendGrid Configuration
    SENDGRID_API_KEY=your_sendgrid_api_key_here
@@ -46,128 +48,117 @@
    NEXT_PUBLIC_BASE_URL=http://localhost:3000
    ```
 
-   **Important**: For production deployment, set `NEXT_PUBLIC_BASE_URL` to your actual domain (e.g., `https://yourdomain.com`)
-
-4. **Set up Supabase Database**
-   
-   Create the following tables in your Supabase database:
-
-   **Articles Table:**
+4. **Set up the database**
+   Run the following SQL in your Supabase SQL editor:
    ```sql
-   CREATE TABLE articles (
+   -- Create articles table
+   CREATE TABLE IF NOT EXISTS articles (
      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
      title TEXT NOT NULL,
-     author_name TEXT NOT NULL,
-     agency_contact TEXT NOT NULL,
-     kol_name TEXT NOT NULL,
+     author TEXT NOT NULL,
+     email TEXT NOT NULL,
+     kol_name TEXT,
      kol_credentials TEXT,
-     body TEXT NOT NULL,
-     therapeutic_area TEXT,
-     target_audience TEXT,
-     article_type TEXT,
+     content TEXT NOT NULL,
      image_url TEXT,
+     classification TEXT,
+     payment_status TEXT DEFAULT 'pending',
      interview_package TEXT DEFAULT 'basic',
-     payment_status TEXT DEFAULT 'pending',
-     status TEXT DEFAULT 'pending_review',
+     status TEXT DEFAULT 'pending',
      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
    );
-   ```
 
-   **Interviews Table:**
-   ```sql
-   CREATE TABLE interviews (
+   -- Create interviews table
+   CREATE TABLE IF NOT EXISTS interviews (
      id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-     article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
-     scheduled_time TIMESTAMP WITH TIME ZONE NOT NULL,
-     duration INTEGER NOT NULL,
+     article_id UUID REFERENCES articles(id),
+     scheduled_date DATE,
+     scheduled_time TIME,
+     package_name TEXT,
      payment_status TEXT DEFAULT 'pending',
+     status TEXT DEFAULT 'pending',
      created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
      updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
    );
    ```
 
-   **If you have an existing articles table**, run this SQL to add the missing columns:
-   ```sql
-   -- Add interview_package column if it doesn't exist
-   ALTER TABLE articles ADD COLUMN IF NOT EXISTS interview_package TEXT DEFAULT 'basic';
+5. **Set up Stripe Webhooks**
    
-   -- Add payment_status column if it doesn't exist
-   ALTER TABLE articles ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
-   
-   -- Update existing records to have default values
-   UPDATE articles SET interview_package = 'basic' WHERE interview_package IS NULL;
-   UPDATE articles SET payment_status = 'pending' WHERE payment_status IS NULL;
-   ```
+   **For Development:**
+   - Install Stripe CLI: https://stripe.com/docs/stripe-cli
+   - Run: `stripe listen --forward-to localhost:3000/api/webhook/stripe`
+   - Copy the webhook signing secret and add it to your `.env.local` as `STRIPE_WEBHOOK_SECRET`
 
-5. **Run the development server**
+   **For Production:**
+   - Go to your Stripe Dashboard → Developers → Webhooks
+   - Add endpoint: `https://your-domain.com/api/webhook/stripe`
+   - Select events: `checkout.session.completed`, `payment_intent.succeeded`, `payment_intent.payment_failed`
+   - Copy the webhook signing secret and add it to your production environment variables
+
+6. **Run the application**
    ```bash
    npm run dev
    ```
 
-6. **Open your browser**
-   Navigate to `http://localhost:3000`
+7. **Test the application**
+   ```bash
+   npm test
+   ```
 
 ## Features
 
-- **Article Submission**: Multi-step form for submitting articles with KoL information
-- **Image Upload**: Cloudinary integration for image uploads
-- **Interview Booking**: Integrated interview scheduling with payment packages
-- **Payment Processing**: Stripe integration for secure payments
-- **Admin Panel**: Protected admin interface for managing articles and interviews
-- **Email Notifications**: SendGrid integration for email confirmations
+### ✅ **Payment Status Updates**
+- Automatic payment status updates via Stripe webhooks
+- Real-time payment verification on thank you page
+- Database synchronization for payment status
 
-## Admin Access
+### ✅ **Image Upload**
+- Cloudinary integration with automatic image optimization
+- File type validation (JPEG, PNG, WebP)
+- File size limits (max 10MB)
+- Multiple image sizes for responsive design
+- Graceful error handling for missing configuration
 
-- **URL**: `/admin`
-- **Username**: `admin`
-- **Password**: `password`
+### ✅ **Production Ready**
+- Environment variable validation
+- Comprehensive error handling
+- Webhook signature verification
+- Secure payment processing
+- Responsive design
 
 ## Troubleshooting
 
-### Common Issues
+### Payment Issues
+- **Webhook not working**: Ensure `STRIPE_WEBHOOK_SECRET` is set correctly
+- **Payment status not updating**: Check webhook endpoint is accessible and Stripe events are being received
+- **Invalid signature**: Verify webhook secret matches Stripe dashboard
 
-1. **Build Errors on Vercel**
-   - Ensure `autoprefixer` is installed: `npm install autoprefixer --save-dev`
-   - Check that all environment variables are set in Vercel dashboard
+### Image Upload Issues
+- **Upload failing**: Check Cloudinary credentials in environment variables
+- **File too large**: Ensure image is under 10MB
+- **Invalid file type**: Only JPEG, PNG, and WebP are supported
 
-2. **Database Schema Errors**
-   - Run the SQL commands above to add missing columns
-   - Check that your Supabase service role key has proper permissions
+### Environment Variables
+- **Missing variables**: Copy from `env.example` and fill in your values
+- **Base URL issues**: Set `NEXT_PUBLIC_BASE_URL` to your domain (e.g., `https://yourdomain.com`)
+- **Stripe keys**: Ensure you're using the correct keys for your environment (test/live)
 
-3. **SendGrid API Key Errors**
-   - Ensure your SendGrid API key starts with "SG."
-   - Verify the sender email is verified in SendGrid
-
-4. **Payment URL Errors**
-   - Set `NEXT_PUBLIC_BASE_URL` to your actual domain in production
-   - For local development, use `http://localhost:3000`
-
-5. **JSON Parsing Errors**
-   - Check that all form data is properly formatted
-   - Ensure Content-Type headers are set to `application/json`
-
-### Environment Variables Checklist
-
-Before running the application, ensure you have:
-
-- [ ] Supabase URL and keys
-- [ ] Stripe secret and publishable keys
-- [ ] Cloudinary credentials
-- [ ] SendGrid API key and verified sender email
-- [ ] `NEXT_PUBLIC_BASE_URL` set correctly for your environment
+### Database Issues
+- **Column not found**: Run the database setup SQL in your Supabase dashboard
+- **Connection errors**: Verify Supabase URL and keys are correct
 
 ## Deployment
 
-1. **Vercel Deployment**
-   - Connect your GitHub repository to Vercel
-   - Add all environment variables in Vercel dashboard
-   - Deploy
+### Vercel
+1. Connect your GitHub repository to Vercel
+2. Add all environment variables in Vercel dashboard
+3. Deploy automatically on push to main branch
 
-2. **Other Platforms**
-   - Ensure all environment variables are set
-   - Set `NEXT_PUBLIC_BASE_URL` to your production domain
-   - Run `npm run build` to test the build process
+### Other Platforms
+- Ensure all environment variables are set
+- Set `NEXT_PUBLIC_BASE_URL` to your production domain
+- Configure Stripe webhook endpoint to your production URL
 
 ## Support
 

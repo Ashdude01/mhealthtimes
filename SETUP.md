@@ -78,6 +78,25 @@ CREATE TABLE interviews (
 );
 ```
 
+### If you have an existing articles table without the new columns:
+If you already have an articles table but it's missing the `interview_package` and `payment_status` columns, run this additional SQL:
+
+```sql
+-- Add missing columns to existing articles table
+ALTER TABLE articles 
+ADD COLUMN IF NOT EXISTS interview_package TEXT DEFAULT 'basic',
+ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'pending';
+
+-- Update existing records to have default values
+UPDATE articles 
+SET interview_package = 'basic' 
+WHERE interview_package IS NULL;
+
+UPDATE articles 
+SET payment_status = 'pending' 
+WHERE payment_status IS NULL;
+```
+
 ## Step 4: Run the Application
 ```bash
 npm run dev
@@ -125,6 +144,16 @@ Open [http://localhost:3000](http://localhost:3000) to view the application.
 - Check that all environment variables are set correctly
 - Verify Supabase connection and table creation
 - Check browser console for detailed error messages
+- Ensure the articles table has `interview_package` and `payment_status` columns
+
+### Database Schema Errors
+- If you see "Could not find the 'interview_package' column" error, run the database update SQL commands above
+- Make sure all required columns exist in your Supabase articles table
+
+### SendGrid API Key Errors
+- Ensure your SendGrid API key starts with "SG."
+- Verify the API key is correct and has proper permissions
+- If email functionality is not critical, the app will continue to work without it
 
 ### Payment Issues
 - Ensure Stripe keys are correct

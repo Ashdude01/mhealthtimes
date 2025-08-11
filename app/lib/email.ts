@@ -1,6 +1,12 @@
 import sgMail from '@sendgrid/mail'
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY!)
+// Check if SendGrid API key is properly configured
+const sendGridApiKey = process.env.SENDGRID_API_KEY
+if (!sendGridApiKey || !sendGridApiKey.startsWith('SG.')) {
+  console.warn('SendGrid API key is missing or invalid. Email functionality will be disabled.')
+} else {
+  sgMail.setApiKey(sendGridApiKey)
+}
 
 export const sendEmail = async (params: {
   to: string
@@ -8,16 +14,27 @@ export const sendEmail = async (params: {
   html: string
   from?: string
 }) => {
+  // Check if SendGrid is properly configured
+  if (!sendGridApiKey || !sendGridApiKey.startsWith('SG.')) {
+    console.log('Email not sent - SendGrid not configured:', {
+      to: params.to,
+      subject: params.subject
+    })
+    return // Don't throw error, just log and continue
+  }
+
   try {
     await sgMail.send({
       to: params.to,
-      from: params.from || 'noreply@mhealthtimes.com',
+      from: params.from || process.env.SENDGRID_FROM_EMAIL || 'noreply@mhealthtimes.com',
       subject: params.subject,
       html: params.html,
     })
+    console.log('Email sent successfully to:', params.to)
   } catch (error) {
     console.error('SendGrid error:', error)
-    throw new Error('Failed to send email')
+    // Don't throw error to prevent breaking the main flow
+    console.log('Email sending failed, but continuing with the request')
   }
 }
 

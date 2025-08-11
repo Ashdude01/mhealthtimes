@@ -4,7 +4,16 @@ import { sendEmail, emailTemplates } from '../../lib/email'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
+    let body;
+    try {
+      body = await request.json()
+    } catch (jsonError) {
+      console.error('JSON parsing error:', jsonError)
+      return NextResponse.json(
+        { error: 'Invalid JSON in request body' },
+        { status: 400 }
+      )
+    }
     
     // Check if Supabase is configured
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
@@ -38,6 +47,14 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
+    if (error) {
+      console.error('Database error:', error)
+      return NextResponse.json(
+        { error: `Database error: ${error.message}` },
+        { status: 500 }
+      )
+    }
+
     // If interview package is selected, create interview record
     if (body.interview_package && body.interview_package !== 'basic' && body.interview_date && body.interview_time) {
       const scheduledDateTime = new Date(`${body.interview_date}T${body.interview_time}`);
@@ -54,14 +71,6 @@ export async function POST(request: NextRequest) {
         ])
       .select()
       .single();
-    }
-
-    if (error) {
-      console.error('Database error:', error)
-      return NextResponse.json(
-        { error: `Database error: ${error.message}` },
-        { status: 500 }
-      )
     }
 
     // Send confirmation email

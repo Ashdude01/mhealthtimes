@@ -166,7 +166,9 @@ export default function ArticleSubmissionForm() {
       });
 
       if (!articleResponse.ok) {
-        throw new Error('Failed to submit article');
+        const errorText = await articleResponse.text();
+        console.error('Article submission error:', errorText);
+        throw new Error(`Failed to submit article: ${articleResponse.status}`);
       }
 
       const articleData = await articleResponse.json();
@@ -192,9 +194,15 @@ export default function ArticleSubmissionForm() {
 
         if (paymentResponse.ok) {
           const paymentData = await paymentResponse.json();
-          window.location.href = paymentData.url;
+          if (paymentData.url) {
+            window.location.href = paymentData.url;
+          } else {
+            throw new Error('No payment URL received');
+          }
         } else {
-          throw new Error('Failed to create payment session');
+          const errorText = await paymentResponse.text();
+          console.error('Payment error response:', errorText);
+          throw new Error(`Payment failed: ${paymentResponse.status}`);
         }
       } else {
         // For basic package, redirect to thank you page
@@ -202,7 +210,7 @@ export default function ArticleSubmissionForm() {
       }
     } catch (error) {
       console.error('Submission error:', error);
-      alert('Failed to submit article');
+      alert(`Failed to submit article: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setIsSubmitting(false);
     }

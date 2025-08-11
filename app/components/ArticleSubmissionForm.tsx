@@ -17,6 +17,8 @@ interface FormData {
   body: string;
   image_url?: string;
   interview_package?: string;
+  interview_date?: string;
+  interview_time?: string;
 }
 
 const therapeuticAreas = [
@@ -99,8 +101,11 @@ const interviewPackages = [
 export default function ArticleSubmissionForm() {
   const [currentStep, setCurrentStep] = useState(1);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [selectedPackage, setSelectedPackage] = useState<string>('');
+  const [interviewDate, setInterviewDate] = useState<string>('');
+  const [interviewTime, setInterviewTime] = useState<string>('');
   const router = useRouter();
   
   const {
@@ -119,6 +124,7 @@ export default function ArticleSubmissionForm() {
     const file = event.target.files?.[0];
     if (!file) return;
 
+    setIsUploading(true);
     const formData = new FormData();
     formData.append('image', file);
 
@@ -138,6 +144,8 @@ export default function ArticleSubmissionForm() {
     } catch (error) {
       console.error('Upload error:', error);
       alert('Failed to upload image');
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -176,7 +184,9 @@ export default function ArticleSubmissionForm() {
             interviewType: selectedPackage,
             articleId: articleData.id,
             packageName: packageData?.name,
-            amount: packageData?.price
+            amount: packageData?.price,
+            interviewDate: interviewDate,
+            interviewTime: interviewTime
           }),
         });
 
@@ -347,24 +357,37 @@ export default function ArticleSubmissionForm() {
       <h3 className="text-lg font-medium text-gray-900">Upload Article Image</h3>
       
       <div className="text-center">
-        <div className="border-2 border-dashed border-gray-300 rounded-lg p-8 hover:border-primary-400 transition-colors">
+        <div className={`border-2 border-dashed rounded-lg p-8 transition-colors ${
+          isUploading 
+            ? 'border-primary-400 bg-primary-50' 
+            : 'border-gray-300 hover:border-primary-400'
+        }`}>
           <input
             type="file"
             accept="image/*"
             onChange={handleImageUpload}
             className="hidden"
             id="image-upload"
+            disabled={isUploading}
           />
-          <label htmlFor="image-upload" className="cursor-pointer">
+          <label htmlFor="image-upload" className={`cursor-pointer ${isUploading ? 'cursor-not-allowed' : ''}`}>
             <div className="space-y-4">
               <div className="mx-auto w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center">
-                <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                </svg>
+                {isUploading ? (
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary-600"></div>
+                ) : (
+                  <svg className="w-6 h-6 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                )}
               </div>
               <div>
-                <p className="text-lg font-medium text-gray-900">Upload Image</p>
-                <p className="text-gray-500">Click to select or drag and drop</p>
+                <p className="text-lg font-medium text-gray-900">
+                  {isUploading ? 'Uploading...' : 'Upload Image'}
+                </p>
+                <p className="text-gray-500">
+                  {isUploading ? 'Please wait while we upload your image' : 'Click to select or drag and drop'}
+                </p>
                 <p className="text-sm text-gray-400 mt-1">PNG, JPG, GIF up to 10MB</p>
               </div>
             </div>
@@ -427,6 +450,55 @@ export default function ArticleSubmissionForm() {
           </div>
         ))}
       </div>
+
+      {/* Interview Scheduling Section */}
+      {selectedPackage && selectedPackage !== 'basic' && (
+        <div className="mt-8 p-6 bg-gray-50 rounded-lg">
+          <h4 className="text-lg font-medium text-gray-900 mb-4">Schedule Your Interview</h4>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="interview-date" className="block text-sm font-medium text-gray-700 mb-2">
+                Interview Date
+              </label>
+              <input
+                type="date"
+                id="interview-date"
+                value={interviewDate}
+                onChange={(e) => setInterviewDate(e.target.value)}
+                min={new Date().toISOString().split('T')[0]}
+                className="form-input w-full"
+                required
+              />
+            </div>
+            <div>
+              <label htmlFor="interview-time" className="block text-sm font-medium text-gray-700 mb-2">
+                Interview Time
+              </label>
+              <select
+                id="interview-time"
+                value={interviewTime}
+                onChange={(e) => setInterviewTime(e.target.value)}
+                className="form-input w-full"
+                required
+              >
+                <option value="">Select a time</option>
+                <option value="09:00">9:00 AM</option>
+                <option value="10:00">10:00 AM</option>
+                <option value="11:00">11:00 AM</option>
+                <option value="12:00">12:00 PM</option>
+                <option value="13:00">1:00 PM</option>
+                <option value="14:00">2:00 PM</option>
+                <option value="15:00">3:00 PM</option>
+                <option value="16:00">4:00 PM</option>
+                <option value="17:00">5:00 PM</option>
+              </select>
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 mt-2">
+            Please select your preferred interview date and time. We'll confirm the schedule after payment.
+          </p>
+        </div>
+      )}
     </div>
   );
 
@@ -500,6 +572,17 @@ export default function ArticleSubmissionForm() {
                   ))}
                 </ul>
               </div>
+
+              {/* Interview Schedule (if applicable) */}
+              {selectedPackage && selectedPackage !== 'basic' && interviewDate && interviewTime && (
+                <div className="mt-4 p-4 bg-success-50 rounded-lg">
+                  <h5 className="font-medium text-success-900 mb-2">Interview Schedule</h5>
+                  <div className="space-y-1 text-sm">
+                    <p><span className="font-medium">Date:</span> {new Date(interviewDate).toLocaleDateString()}</p>
+                    <p><span className="font-medium">Time:</span> {interviewTime}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -523,7 +606,10 @@ export default function ArticleSubmissionForm() {
       case 2:
         return true; // Image upload is optional
       case 3:
-        return selectedPackage;
+        if (selectedPackage === 'basic') {
+          return true;
+        }
+        return selectedPackage && interviewDate && interviewTime;
       case 4:
         return true;
       default:

@@ -4,7 +4,7 @@ import { createCheckoutSession, STRIPE_PRICES } from '../../lib/stripe'
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { interviewType, articleId, packageName, amount } = body
+    const { interviewType, articleId, packageName, amount, interviewDate, interviewTime } = body
 
     // Create a custom price for the package
     const session = await createCheckoutSession({
@@ -15,7 +15,9 @@ export async function POST(request: NextRequest) {
         articleId,
         interviewType,
         packageName,
-        amount: amount.toString()
+        amount: amount.toString(),
+        interviewDate: interviewDate || '',
+        interviewTime: interviewTime || ''
       }
     })
 

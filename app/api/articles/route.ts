@@ -38,6 +38,24 @@ export async function POST(request: NextRequest) {
       .select()
       .single()
 
+    // If interview package is selected, create interview record
+    if (body.interview_package && body.interview_package !== 'basic' && body.interview_date && body.interview_time) {
+      const scheduledDateTime = new Date(`${body.interview_date}T${body.interview_time}`);
+      
+      await supabase
+        .from('interviews')
+        .insert([
+          {
+            article_id: data.id,
+            scheduled_time: scheduledDateTime.toISOString(),
+            duration: body.interview_package === 'premium' ? 15 : 30,
+            payment_status: 'pending'
+          }
+        ])
+      .select()
+      .single();
+    }
+
     if (error) {
       console.error('Database error:', error)
       return NextResponse.json(
